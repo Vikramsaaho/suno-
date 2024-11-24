@@ -1,0 +1,85 @@
+pip install playwright httpx asyncio
+playwright install
+from playwright.async_api import async_playwright
+import json
+
+async def export_google_login_state(email, password):
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=False)
+        context = await browser.new_context()
+
+        # Open a new page
+        page = await context.new_page()
+
+        # Navigate to Google login page
+        await page.goto("https://accounts.google.com/")
+
+        # Enter email and click Next
+        await page.fill("input[type='email']", email)
+        await page.click("button:has-text('Next')")
+
+        # Wait for password input to appear
+        await page.wait_for_selector("input[type='password']")
+        await page.fill("input[type='password']", password)
+        await page.click("button:has-text('Next')")
+
+        # Wait for login to complete
+        await page.wait_for_url("https://myaccount.google.com/", timeout=60000)
+
+        # Export cookies and storage state
+        storage_state = await context.storage_state()
+        with open("google_login_state.json", "w") as file:
+            json.dump(storage_state, file)
+
+        await browser.close()
+
+# Replace with actual credentials (use environment variables for security in production)
+email = "your-email@example.com"
+password = "your-password"
+
+# Export login state
+asyncio.run(export_google_login_state(email, password))
+import httpx
+import json
+
+def load_cookies_from_state(file_path):
+    with open(file_path, "r") as file:
+        state = json.load(file)
+    
+    cookies = {cookie["name"]: cookie["value"] for cookie in state["cookies"]}
+    return cookies
+async def interact_with_endpoints():
+    cookies = load_cookies_from_state("google_login_state.json")
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    }
+
+    async with httpx.AsyncClient(cookies=cookies, headers=headers) as client:
+        # Interact with the /generate endpoint
+        response_generate = await client.get("https://example.com/generate")
+        print("Generate Response:", response_generate.json())
+
+        # Interact with the /feed endpoint
+        response_feed = await client.get("https://example.com/feed")
+        print("Feed Response:", response_feed.json())
+
+# Run the async interaction
+asyncio.run(interact_with_endpoints())
+async def generate_chapters():
+    cookies = load_cookies_from_state("google_login_state.json")
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    }
+
+    payload = {
+        "content": "Sample text for chapter generation."
+    }
+
+    async with httpx.AsyncClient(cookies=cookies, headers=headers) as client:
+        response = await client.post("https://example.com/chapters", json=payload)
+        print("Chapters Response:", response.json())
+
+# Run the async generation
+asyncio.run(generate_chapters())
